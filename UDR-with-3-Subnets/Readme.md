@@ -1,4 +1,4 @@
-azure arm templates for UDR, after deploying this template we can have
+azure arm templates for UDR with NVA, after deploying this template we can have
 
     one VNet and 3 Subnets
     A Windows 2016 DC VM in each subnet

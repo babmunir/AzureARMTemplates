@@ -1,1 +1,360 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters":{
+        "adminUserName":{
+            "type":"string",
+            "metadata":{
+                "description": "Enter VM Admin User Name"
+            }
+        },
+        "adminPassword":{
+        "type":"string",
+        "metadata":{
+            "description":"Enter VM Password"
+        }
+        }
+    },
+    "variables": {
+        "VNetName": "VNet",
+        "VNetAddSpace": "10.0.0.0/16",
+        "Subnet1Name": "FrontEndSubnet",
+        "Subnet1AddPrefix":"10.0.0.0/24",
+        "Subnet2Name": "BackEndSubnet",
+        "Subnet2AddPrefix":"10.0.1.0/24",
+        "Subnet3Name": "DMZSubnet",
+        "Subnet3AddPrefix":"10.0.30.0/24",
+        "publicIP1Name": "VMPUB1",
+        "publicIP2Name": "VMPUB2",
+        "publicIP3Name": "NVAPUB",
+        "Nic1Name": "VM1NIC",
+        "Nic2Name": "VM2NIC",
+        "Nic3Name": "NVANIC",
+        "NSG":"DefaultNSG",
+        "VM1Name":"VM01",
+        "VM2Name":"VM02",
+        "VM3Name":"NVA",
+        "RouteTableName":"UDR"
+    },
+    "resources": [
+        {
+            "type":"Microsoft.Network/publicIPAddresses",
+            "apiVersion":"2019-09-01",
+            "location":"[resourcegroup().location]",
+            "name":"[variables('publicIP1Name')]",
+            "properties":{
+                "publicIPAllocationMethod":"Dynamic"
+            }
+        },
+        {
+            "type":"Microsoft.Network/publicIPAddresses",
+            "apiVersion":"2019-09-01",
+            "location":"[resourcegroup().location]",
+            "name":"[variables('publicIP2Name')]",
+            "properties":{
+                "publicIPAllocationMethod":"Dynamic"
+            }
+        },
+        {
+            "type":"Microsoft.Network/publicIPAddresses",
+            "apiVersion":"2019-09-01",
+            "location":"[resourcegroup().location]",
+            "name":"[variables('publicIP3Name')]",
+            "properties":{
+                "publicIPAllocationMethod":"Dynamic"
+            }
+        },
+         {
+      "apiVersion": "2019-09-01",
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "name": "[variables('NSG')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "RDP_Rule",
+            "properties": {
+              "description": "Allow_RDP",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "3389",
+              "sourceAddressPrefix": "Internet",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 100,
+              "direction": "Inbound"
+            }
+          }
+        ]
+      }
+    },
+        {
+            "type":"Microsoft.Network/routeTables",
+            "apiVersion":"2019-09-01",
+            "location":"[resourceGroup().location]",
+            "name":"[variables('RouteTableName')]",
+            "properties":{
+                "routes":[
+                    {
+                        "name":"NVARouteToBackEndSubnet",
+                        "properties":{
+                            "addressPrefix":"[variables('Subnet2AddPrefix')]",
+                            "nextHopType":"VirtualAppliance",
+                            "nextHopIpAddress":"10.0.30.4"
+                        }
+                    }
+                ]
+            }
 
+        },     
+        {
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion":"2019-09-01",
+            "name":"[variables('VNetName')]",
+            "location":"[resourceGroup().location]",
+            "dependsOn": [
+             "[concat('Microsoft.Network/routeTables/', variables('RouteTableName'))]",
+             "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NSG'))]"
+                ],
+            "properties":{
+                "addressSpace":{
+                    "addressPrefixes":[
+                        "[variables('VNetAddSpace')]"
+                    ]
+                },
+            "subnets": [
+                {
+                "name": "[variables('Subnet1Name')]",
+                "properties":{
+                    "addressPrefix":"[variables('Subnet1AddPrefix')]",
+                    "networkSecurityGroup": {
+                     "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NSG'))]"
+                 },
+                 "routeTable":{
+                     "id":"[resourceId('Microsoft.Network/routeTables',variables('RouteTableName'))]"
+                 }
+                }
+            },
+            {
+                "name": "[variables('Subnet2Name')]",
+                "properties":{
+                    "addressPrefix":"[variables('Subnet2AddPrefix')]",
+                    "networkSecurityGroup": {
+                     "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NSG'))]"
+                }
+                }
+            },
+            {
+                "name": "[variables('Subnet3Name')]",
+                "properties":{
+                    "addressPrefix":"[variables('Subnet3AddPrefix')]",
+                    "networkSecurityGroup": {
+                     "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('NSG'))]"
+                }
+                }
+            }
+            ]
+            }
+        },
+          {
+            "type":"Microsoft.Network/networkInterfaces",
+            "apiVersion":"2019-09-01",
+            "location":"[resourceGroup().location]",
+            "name":"[variables('Nic1Name')]",
+            "dependsOn":[
+                "[resourceId('Microsoft.Network/publicIPAddresses/', variables('publicIP1Name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks/', variables('VNetName'))]"
+            ],
+            "properties":{
+                "ipConfigurations":[
+                    {
+                        "name":"vm1ipconfig",
+                        "properties":{
+                            "publicIPAddress":{
+                                "id":"[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIP1Name'))]"
+                            },
+                            "subnet":{
+                                "id":"[concat(resourceId('Microsoft.Network/virtualNetworks',variables('VNetName')),'/subnets/',variables('Subnet1Name'))]"
+                            }
+                        }
+                        
+                    }
+                ]
+            }
+        },
+        {
+            "type":"Microsoft.Network/networkInterfaces",
+            "apiVersion":"2019-09-01",
+            "location":"[resourceGroup().location]",
+            "name":"[variables('Nic2Name')]",
+            "dependsOn":[
+                "[resourceId('Microsoft.Network/publicIPAddresses/', variables('publicIP2Name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks/', variables('VNetName'))]"
+            ],
+            "properties":{
+                "ipConfigurations":[
+                    {
+                        "name":"vm2ipconfig",
+                        "properties":{
+                            "publicIPAddress":{
+                                "id":"[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIP2Name'))]"
+                            },
+                            "subnet":{
+                                "id":"[concat(resourceId('Microsoft.Network/virtualNetworks',variables('VNetName')),'/subnets/',variables('Subnet2Name'))]"
+                            }
+                        }
+                        
+                    }
+                ]
+            }
+        },
+        {
+            "type":"Microsoft.Network/networkInterfaces",
+            "apiVersion":"2019-09-01",
+            "location":"[resourceGroup().location]",
+            "name":"[variables('Nic3Name')]",
+            "dependsOn":[
+                "[resourceId('Microsoft.Network/publicIPAddresses/', variables('publicIP3Name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks/', variables('VNetName'))]"
+            ],
+            "properties":{
+                "ipConfigurations":[
+                    {
+                        "name":"nvaipconfig",
+                        "properties":{
+                            "publicIPAddress":{
+                                "id":"[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIP3Name'))]"
+                            },
+                            "subnet":{
+                                "id":"[concat(resourceId('Microsoft.Network/virtualNetworks',variables('VNetName')),'/subnets/',variables('Subnet3Name'))]"
+                            }
+                        }
+                        
+                    }
+                ],
+                "enableIPForwarding": true
+            }            
+        },
+        {
+            "type":"Microsoft.Compute/virtualMachines",
+            "apiVersion":"2019-03-01",
+            "location":"[resourceGroup().location]",
+            "name":"[variables('VM1Name')]",
+            "dependsOn":[
+                "[resourceId('Microsoft.Network/networkInterfaces',variables('Nic1Name'))]"
+            ],
+            "properties":{
+                "hardwareProfile":{
+                    "vmSize":"Standard_B2s"
+                },
+                "osProfile":{
+                    "computerName":"[variables('VM1Name')]",
+                    "adminUsername":"[parameters('adminUsername')]",
+                    "adminPassword":"[parameters('adminPassword')]"
+                },
+                "storageProfile":{
+                    "imageReference":{
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer":"WindowsServer",
+                        "sku":"2016-Datacenter",
+                        "version":"latest"
+                    },
+                    "osDisk":{
+                        "createOption":"FromImage"
+                    }
+                },
+                "networkProfile":{
+                    "networkInterfaces":[
+                        {
+                            "id":"[resourceId('Microsoft.Network/networkInterfaces',variables('Nic1Name'))]",
+                            "properties":{
+                                "primary":true
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type":"Microsoft.Compute/virtualMachines",
+            "apiVersion":"2019-03-01",
+            "location":"[resourceGroup().location]",
+            "name":"[variables('VM2Name')]",
+            "dependsOn":[
+                "[resourceId('Microsoft.Network/networkInterfaces',variables('Nic2Name'))]"
+            ],
+            "properties":{
+                "hardwareProfile":{
+                    "vmSize":"Standard_B2s"
+                },
+                "osProfile":{
+                    "computerName":"[variables('VM2Name')]",
+                    "adminUsername":"[parameters('adminUsername')]",
+                    "adminPassword":"[parameters('adminPassword')]"
+                },
+                "storageProfile":{
+                    "imageReference":{
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer":"WindowsServer",
+                        "sku":"2016-Datacenter",
+                        "version":"latest"
+                    },
+                    "osDisk":{
+                        "createOption":"FromImage"
+                    }
+                },
+                "networkProfile":{
+                    "networkInterfaces":[
+                        {
+                            "id":"[resourceId('Microsoft.Network/networkInterfaces',variables('Nic2Name'))]",
+                            "properties":{
+                                "primary":true
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type":"Microsoft.Compute/virtualMachines",
+            "apiVersion":"2019-03-01",
+            "location":"[resourceGroup().location]",
+            "name":"[variables('VM3Name')]",
+            "dependsOn":[
+                "[resourceId('Microsoft.Network/networkInterfaces',variables('Nic3Name'))]"
+            ],
+            "properties":{
+                "hardwareProfile":{
+                    "vmSize":"Standard_B2s"
+                },
+                "osProfile":{
+                    "computerName":"[variables('VM3Name')]",
+                    "adminUsername":"[parameters('adminUsername')]",
+                    "adminPassword":"[parameters('adminPassword')]"
+                },
+                "storageProfile":{
+                    "imageReference":{
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer":"WindowsServer",
+                        "sku":"2016-Datacenter",
+                        "version":"latest"
+                    },
+                    "osDisk":{
+                        "createOption":"FromImage"
+                    }
+                },
+                "networkProfile":{
+                    "networkInterfaces":[
+                        {
+                            "id":"[resourceId('Microsoft.Network/networkInterfaces',variables('Nic3Name'))]",
+                            "properties":{
+                                "primary":true
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+        
+    ]
+}

@@ -1,1 +1,15 @@
 
+ "parameters":{
+        "adminUserName":{
+            "type":"string",
+            "metadata":{
+                "description": "Enter VM Admin User Name"
+            }
+        },
+        "adminPassword":{
+        "type":"string",
+        "metadata":{
+            "description":"Enter VM Password"
+        }
+        }
+    },

@@ -1,0 +1,26 @@
+"parameters": {
+        "AdminUserForVMEast":{
+            "type":"string",
+            "metadata":{
+                "description": "VMEast VM UserName"
+            }
+        },
+        "AdminPasswordForVMEast":{
+            "type":"string",
+            "metadata":{
+                "description": "VMEast VM Password"
+            }
+        },
+        "AdminUserForVMWest":{
+            "type":"string",
+            "metadata":{
+                "description": "VMWest VM UserName"
+            }
+        },
+        "AdminPasswordForVMWest":{
+            "type":"string",
+            "metadata":{
+                "description": "VMWest VM Password"
+            }
+        }     
+    },
